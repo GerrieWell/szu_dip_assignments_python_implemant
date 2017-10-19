@@ -8,12 +8,8 @@ import matplotlib.pyplot as plt
 import os
 
 def reduce_gray_level(img,factor):
-    """
-    img: uint8 image
-    """
     scale = int(2**factor)
     img = (img/scale)*scale
-    # img = img.astype(np.uint8)
     return img
 
 def rescale(img,factor):
@@ -23,71 +19,51 @@ def rescale(img,factor):
         dest[i,j] = img[int(i/factor),int(j/factor)]
     return dest
 
-def restore(img,factor):
-    return img
+def bilinear_resize(img,m,n):  
+    height,width =img.shape  
+    emptyImage=np.zeros((m,n),img.dtype)  
+    sh=float(m)/height  
+    sw=float(n)/width  
+    for i,j in np.ndindex((m,n)):
+        x,y = i/sh,j/sw                     # 原图坐标: x: 纵坐标, y横坐标 . 
+        p,q=(i+0.0)/sh-x , (j+0.0)/sw-y  
+        x,y=min(int(x),height-2) , min(int(y),width-2)             #防止越界. 
+        value = int(img[x,y]*(1-p)*(1-q)+img[x,y+1]*q*(1-p)+img[x+1,y]*(1-q)*p+img[x+1,y+1]*p*q)
+        emptyImage[i, j] = value
+    return emptyImage 
 
-def bilinear_resize(src,dstsize):#src size
-    if src.ndim==3:  
-        dstsize.append(3)  
-    dst=np.array(np.zeros(dstsize),src.dtype)  
-    factory=float(np.size(src,0))/dstsize[0]   
-    factorx=float(np.size(src,1))/dstsize[1]  
-    print 'factory',factory,'factorx',factorx  
-    srcheight=np.size(src,0)  
-    srcwidth=np.size(src,1)  
-    print 'srcwidth',srcwidth,'srcheight',srcheight  
-    for i in range(dstsize[0]):  
-        for j in range(dstsize[1]):  
-            y=float(i)*factory  
-            x=float(j)*factorx  
-            if y+1>srcheight: 
-                y-=1  
-            if x+1>srcwidth:  
-                x-=1   
-            cy=np.ceil(y)  
-            fy=cy-1  
-            cx=np.ceil(x)  
-            fx=cx-1  
-            w1=(cx-x)*(cy-y)  
-            w2=(x-fx)*(cy-y)  
-            w3=(cx-x)*(y-fy)  
-            w4=(x-fx)*(y-fy)      
-            if (x-np.floor(x)>1e-6 or y-np.floor(y)>1e-6):   
-                t=src[fy,fx]*w1+src[fy,cx]*w2+src[cy,fx]*w3+src[cy,cx]*w4  
-                t=np.ubyte(np.floor(t))  
-                dst[i,j]=t  
-                #print t  
-            else:        
-                dst[i,j]=(src[y,x])  
-                # print src[i,j]  
-    return dst  
-
-def visualize(src,dest):
-    plt.subplot(121)
-    plt.imshow(src,cmap='gray')
-    plt.subplot(122)
-    plt.imshow(dest,cmap='gray')    
+def visualize(gray_imgs,title=None):
+    num = len(gray_imgs)
+    for i in range(0,num):
+        plt.subplot(100+10*num+i+1)
+        plt.imshow(gray_imgs[i],cmap = 'gray')
+        if not title == None:
+            plt.title(title[i])
+        plt.tight_layout()     
 
 def main():
     image_dir = '/Users/gerrie/Documents/szu/course/DIP_assignments/Labimages/'
-    test_mat = mpimg.imread(os.path.join(image_dir,'Fig2.22(a).jpg'))
-    # test_mat = test_mat/255.0 
-    # 1.a 1.b 
-    dest = reduce_gray_level(test_mat,6)
-    visualize(test_mat,dest) 
+    test_mat = mpimg.imread(os.path.join(image_dir,'Fig2.21(a).jpg'))
+    img219a = mpimg.imread(os.path.join(image_dir,'Fig2.19(a).jpg'))
+    
+    # # 1.a 1.b 
+    dest128 = reduce_gray_level(test_mat,1)
+    dest64 = reduce_gray_level(test_mat,2)
+    dest32 = reduce_gray_level(test_mat,3)
+    visualize([test_mat,dest128,dest64,dest32],['origin','128','64','32']) 
 
-    # 2.a 2.b 
-    dest = rescale(test_mat,2)
-    figure()
-    visualize(test_mat,dest)
-
-    #2.b 2.c
-    scale_256 = rescale(test_mat,0.25)
+    # #2.b 2.c
+    scale_256 = rescale(img219a,0.25)
     scale_1024 = rescale(scale_256,4)
-    figure()
-    visualize(scale_256,scale_1024)
+    plt.figure()
+    visualize([img219a,scale_256,scale_1024],['origin','256x256','1024x1024'])
 
-    #3.a 
+    #3.a 3.b 3.c 
+    bi_scale_256 = bilinear_resize(img219a,256,256)
+    restore_img = bilinear_resize(bi_scale_256,1024,1024)
+    plt.figure()
+    visualize([img219a,bi_scale_256,restore_img])
+
     plt.show()
 
 if __name__ == '__main__':
